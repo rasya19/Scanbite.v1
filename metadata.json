@@ -1,0 +1,6 @@
+{
+  "name": "Self-Service QR Cafe Order",
+  "description": "Innovative self-service cafe ordering system via scanned QR Code with real-time tabletop split billing, digital jukebox queueing, and admin image uploading.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
