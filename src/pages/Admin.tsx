@@ -46,8 +46,8 @@ const PendingCountdownTimer: React.FC<{ order: CafeOrder }> = ({ order }) => {
   useEffect(() => {
     const calculateElapsed = () => {
       let createdTimeMs = 0;
-      if (order.createdAtDate) {
-        createdTimeMs = new Date(order.createdAtDate).getTime();
+      if (order.createdAt) {
+        createdTimeMs = new Date(order.createdAt).getTime();
       } else if ((order as any).created_at) {
         createdTimeMs = new Date((order as any).created_at).getTime();
       } else if (order.createdAt) {
@@ -175,6 +175,7 @@ export default function Admin({ onNavigate }: AdminProps) {
   });
   const [pinInput, setPinInput] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [storeSettings, setStoreSettings] = useState<any>(null);
 
   const isProduction = typeof window !== 'undefined' && (
     window.location.hostname.includes('vercel.app') || 
@@ -182,9 +183,23 @@ export default function Admin({ onNavigate }: AdminProps) {
     window.location.hostname.includes('.run.app') ||
     (import.meta as any).env?.PROD
   );
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data, error } = await supabase
+        .from('sb_settings')
+        .select('*')
+        .eq('kode_tenant', 'scanbite_live')
+        .single();
+        
+      if (data) setStoreSettings(data);
+      if (error) console.error('Gagal load settings:', error);
+    };
+    
+    fetchSettings();
+  }, []);
 
   // Tabs Navigation Selector
-  const [activeTab, setActiveTab] = useState<'orders' | 'completed_history' | 'menu_management' | 'jukebox_controller' | 'qr_generator'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'completed_history' | 'menu_management' | 'jukebox_controller' | 'qr_generator' | 'store_settings'>('orders')
 
   
   // States of synced database records
@@ -346,7 +361,7 @@ export default function Admin({ onNavigate }: AdminProps) {
 
     const { data, error } = await supabase
       .from('sb_tables')
-      .update({ status: 'KOSONG', session_id: null })
+      .update({ status: 'KOSONG', sessionId: null })
       .in('table_number', tableNumberCandidates)
       .select('id, table_number, status');
 
@@ -369,7 +384,7 @@ export default function Admin({ onNavigate }: AdminProps) {
         ? {
             ...t,
             status: 'SEDANG MAKAN',
-            session_id: order.sessionId || order.id,
+            sessionId: order.sessionId || order.id,
             nama_pelanggan: order.customerName || t.nama_pelanggan || 'Sajian Disajikan'
           }
         : t
@@ -384,7 +399,7 @@ export default function Admin({ onNavigate }: AdminProps) {
             ? {
                 ...t,
                 status: 'SEDANG MAKAN',
-                session_id: order.sessionId || order.id,
+                sessionId: order.sessionId || order.id,
                 nama_pelanggan: order.customerName || t.nama_pelanggan || 'Sajian Disajikan'
               }
             : t
@@ -512,6 +527,10 @@ export default function Admin({ onNavigate }: AdminProps) {
         .select('*')
         .eq('kode_tenant', activeTenant)
         .maybeSingle();
+        
+        console.log('Hasil Supabase:', { data, error }) 
+        console.log('Input PIN user:', pinInput)
+        console.log('PIN dari DB:', data?.pin)
 
       if (error) {
         console.error('❌ Kesalahan saat mengambil pengaturan toko dari Supabase:', error);
@@ -637,7 +656,6 @@ export default function Admin({ onNavigate }: AdminProps) {
           cafe_name: cafeName,
           admin_pin: pinToSync,
           currency_code: currencySymbol,
-          app_language: langApp,
           logo_url: merchantLogo || null
         };
 
@@ -692,8 +710,8 @@ export default function Admin({ onNavigate }: AdminProps) {
   // Direct login submit for manual keying/non-keypad entries
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const currentAdminPin = localStorage.getItem('scanbite_admin_pin') || '1234';
-    if (pinInput === currentAdminPin) {
+    
+    if (pinInput === storeSettings.admin_pin) {
       setIsAuthenticated(true);
       localStorage.setItem('scanbite_admin_verified', 'true');
       setPinInput('');
@@ -930,9 +948,8 @@ export default function Admin({ onNavigate }: AdminProps) {
             status: mapOrderStatusForAdmin(ord.status),
             paymentMethod: ord.payment_method || 'cash',
             paymentStatus: ord.payment_status || 'unpaid',
-            sessionId: ord.session_id || `sess-${ord.table_number}`,
-            createdAt: new Date(ord.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            createdAtDate: ord.created_at ? new Date(ord.created_at) : new Date()
+            sessionId: ord.sessionId || `sess-${ord.table_number}`,
+            createdAt: ord.created_at ? new Date(ord.created_at).toISOString() : new Date().toISOString()
           };
         });
 
@@ -1036,7 +1053,7 @@ export default function Admin({ onNavigate }: AdminProps) {
         table_number: num,
         nomor_meja: `Meja ${num}`,
         status: dbRow?.status || 'KOSONG',
-        session_id: null,
+        sessionId: null,
         nama_pelanggan: '-'
       };
     });
@@ -1052,7 +1069,7 @@ export default function Admin({ onNavigate }: AdminProps) {
               table_number: num,
               nomor_meja: `Meja ${num}`,
               status: 'KOSONG',
-              session_id: null,
+              sessionId: null,
               nama_pelanggan: '-'
             };
           });
@@ -1103,7 +1120,7 @@ export default function Admin({ onNavigate }: AdminProps) {
             table_number: num,
             nomor_meja: `Meja ${num}`,
             status: finalStatus,
-            session_id: tableOrder?.session_id || tableOrder?.id || dbRow?.session_id || null,
+            sessionId: tableOrder?.sessionId || tableOrder?.id || dbRow?.sessionId || null,
             nama_pelanggan: tableOrder?.customer_name || dbRow?.nama_pelanggan || '-'
           };
         });
@@ -1237,7 +1254,7 @@ const handleDeleteTable = async (tableNum: string) => {
       if (matchedOrder) {
         finalTableNum = matchedOrder.tableNumber;
       } else {
-        const matchedTable = tablesData.find(t => t.session_id === tableNum);
+        const matchedTable = tablesData.find(t => t.sessionId === tableNum);
         if (matchedTable) {
           finalTableNum = matchedTable.table_number;
         }
@@ -1273,7 +1290,7 @@ const handleDeleteTable = async (tableNum: string) => {
         ));
         setTablesData(prev => prev.map(t => 
           isSameTableNumber(t.table_number, formattedMeja)
-            ? { ...t, status: 'KOSONG', session_id: null, nama_pelanggan: '-' }
+            ? { ...t, status: 'KOSONG', sessionId: null, nama_pelanggan: '-' }
             : t
         ));
 
@@ -1283,7 +1300,7 @@ const handleDeleteTable = async (tableNum: string) => {
             const parsed = JSON.parse(savedDetails);
             const updated = parsed.map((t: any) =>
               isSameTableNumber(t.table_number, formattedMeja)
-                ? { ...t, status: 'KOSONG', session_id: null, nama_pelanggan: '-' }
+                ? { ...t, status: 'KOSONG', sessionId: null, nama_pelanggan: '-' }
                 : t
             );
             localStorage.setItem('scanbite_tables_details', JSON.stringify(updated));
@@ -1344,7 +1361,7 @@ const handleDeleteTable = async (tableNum: string) => {
 
     setTablesData(prev => prev.map(t => 
       isSameTableNumber(t.table_number, formattedMeja)
-        ? { ...t, status: 'KOSONG', session_id: null, nama_pelanggan: '-' }
+        ? { ...t, status: 'KOSONG', sessionId: null, nama_pelanggan: '-' }
         : t
     ));
     
@@ -1364,7 +1381,7 @@ const handleDeleteTable = async (tableNum: string) => {
       try {
         const parsed = JSON.parse(savedOrders);
         const updated = parsed.map((o: any) => 
-          (o.sessionId === sessionId || o.session_id === sessionId || o.id === sessionId) 
+          (o.sessionId === sessionId || o.sessionId === sessionId || o.id === sessionId) 
             ? { ...o, paymentStatus: 'paid' } 
             : o
         );
@@ -1376,14 +1393,14 @@ const handleDeleteTable = async (tableNum: string) => {
 
     setOrders(prevOrders => 
       prevOrders.map(o => 
-        (o.sessionId === sessionId || o.id === sessionId || o.session_id === sessionId) 
+        (o.sessionId === sessionId || o.id === sessionId || o.sessionId === sessionId) 
           ? { ...o, paymentStatus: 'paid' } 
           : o
       )
     );
 
     // Set high-level active receipt preview for kasir after confirmation
-    const updatedOrder = orders.find(o => o.id === sessionId || o.sessionId === sessionId || o.session_id === sessionId);
+    const updatedOrder = orders.find(o => o.id === sessionId || o.sessionId === sessionId || o.sessionId === sessionId);
     if (updatedOrder) {
       setActiveReceipt({
         ...updatedOrder,
@@ -1393,7 +1410,7 @@ const handleDeleteTable = async (tableNum: string) => {
 
     // 2. Locate table number related to this session to update its visual status to SEDANG MAKAN
     let tableNumToUpdate = '';
-    const matchedTableBySession = tablesData.find(t => t.session_id === sessionId);
+    const matchedTableBySession = tablesData.find(t => t.sessionId === sessionId);
     if (matchedTableBySession) {
       tableNumToUpdate = matchedTableBySession.table_number;
     } else {
@@ -2160,7 +2177,7 @@ const handleDeleteTable = async (tableNum: string) => {
       }
     }
     // 2. Date Range Filter comparing with Raw DateTime
-    const ordDateObj = (ord as any).createdAtDate ? new Date((ord as any).createdAtDate) : new Date();
+    const ordDateObj = (ord as any).createdAt ? new Date((ord as any).createdAt) : new Date();
     
     if (historyStartDate) {
       const startLimit = new Date(historyStartDate);
@@ -2189,7 +2206,7 @@ const handleDeleteTable = async (tableNum: string) => {
         const excelData = completedOrders.map((order: any, idx: number) => ({
           'No': idx + 1,
           'ID Pesanan': order.id.slice(0, 8).toUpperCase(),
-          'Waktu': order.createdAtDate || new Date().toLocaleString('id-ID'),
+          'Waktu': order.createdAt || new Date().toLocaleString('id-ID'),
           'Nama Pelanggan': order.customerName,
           'Nomor Meja': order.tableNumber,
           'Menu Dipesan': order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(', '),
@@ -3415,7 +3432,7 @@ const handleDeleteTable = async (tableNum: string) => {
                     <RechartsTooltip 
                       cursor={{ fill: '#FAF8F5' }}
                       contentStyle={{ borderRadius: '16px', border: '1px solid #EBE3D5', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
-                      formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')}`, 'Pendapatan']}
+                      formatter={(value) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Pendapatan']}
                     />
                     <Bar dataKey="revenue" fill="#8C6239" radius={[6, 6, 0, 0]} />
                   </BarChart>
@@ -4662,7 +4679,7 @@ const handleDeleteTable = async (tableNum: string) => {
                 table_number: activeReceipt.tableNumber,
                 customer_name: activeReceipt.customerName,
                 total_price: activeReceipt.totalPrice,
-                created_at: (activeReceipt as any).created_at || (activeReceipt as any).createdAtDate || new Date().toISOString(),
+                created_at: (activeReceipt as any).created_at || (activeReceipt as any).createdAt || new Date().toISOString(),
                 createdAt: (activeReceipt as any).createdAt || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 payment_method_label: activeReceipt.paymentMethod === 'cash' ? 'Tunai / Cash' : 'QRIS / E-Wallet',
                 payment_method: activeReceipt.paymentMethod,
