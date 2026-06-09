@@ -39,6 +39,9 @@ import CategoryManagement from '../components/CategoryManagement';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { DigitalReceipt } from '../components/DigitalReceipt';
 
+const currentTenant = import.meta.env.VITE_APP_TENANT || 'scanbite_live'; // fallback biar gak undefined
+
+const isSandbox = currentTenant!== 'scanbite_live';
 // Live real-time ticking pending countdown timer with urgency color-alerts
 const PendingCountdownTimer: React.FC<{ order: CafeOrder }> = ({ order }) => {
   const [secondsElapsed, setSecondsElapsed] = useState<number>(0);
@@ -2333,9 +2336,11 @@ const handleDeleteTable = async (tableNum: string) => {
             </div>
 
             {/* Auto trigger check hint info */}
-            <div className="text-[10px] bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20 rounded-2xl px-4 py-2 leading-relaxed">
-              🔑 Mode Sandbox: Gunakan kode PIN Aktif <strong className="text-white bg-[#8C6239] px-1.5 py-0.5 rounded ml-1 select-all font-black">{localStorage.getItem('scanbite_admin_pin') || '1234'}</strong> untuk login.
-            </div>
+            {isSandbox && (
+          <div className="text- bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20 rounded-2xl px-4 py-2 leading-relaxed">
+            🔑 Mode Sandbox: Gunakan kode PIN Aktif <strong className="text-white bg-[#8C6239] px-1.5 py-0.5 rounded ml-1 select-all font-black">{localStorage.getItem('scanbite_admin_pin') || '1234'}</strong> untuk login.
+          </div>
+          )}
 
             <div className="pt-2 flex items-center justify-between border-t border-white/5">
               <button
