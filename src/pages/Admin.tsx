@@ -1841,6 +1841,9 @@ const handleDeleteTable = async (tableNum: string) => {
           .select(); // Tambahkan .select() untuk mengembalikan data yang berhasil dihapus
 
         if (error) throw error;
+        
+        console.log("Track ID yang mau dihapus:", trackId);
+        console.log("Hasil dari Supabase:", data);
 
         // Cek jika tidak ada baris yang terhapus (indikasi kuat masalah RLS)
         if (data && data.length === 0) {
