@@ -4385,7 +4385,7 @@ const handleDeleteTable = async (tableNum: string) => {
                   <div className="space-y-3 font-sans">
                     <div>
                       <label className="block text-[10px] uppercase font-black text-[#786455] tracking-wider mb-1">Kode Tenant (Multi-Tenant)</label>
-                      <select
+                      <select disabled>...</select>
                         value={currentTenant}
                         onChange={(e) => {
                           const val = e.target.value;
