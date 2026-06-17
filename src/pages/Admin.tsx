@@ -1830,38 +1830,16 @@ const handleDeleteTable = async (tableNum: string) => {
 
     if (supabase) {
       try {
-        // OPTIMISTIC UPDATE: Langsung hapus dari state UI tanpa menunggu database
-        // (Asumsi nama setter state kamu adalah setJukeboxQueue)
-        setJukeboxQueue(prev => prev.filter(t => t.id !== trackId));
-
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('sb_song_requests')
           .delete()
-          .eq('id', trackId)
-          .select(); // Tambahkan .select() untuk mengembalikan data yang berhasil dihapus
+          .eq('id', trackId);
 
         if (error) throw error;
-        
-        console.log("Track ID yang mau dihapus:", trackId);
-        console.log("Hasil dari Supabase:", data);
-
-        // Cek jika tidak ada baris yang terhapus (indikasi kuat masalah RLS)
-        if (data && data.length === 0) {
-            console.error("⚠️ Data tidak terhapus! Cek pengaturan Policy RLS (Delete) di tabel sb_song_requests Supabase.");
-            // Kembalikan fetch agar sinkron dengan database (opsional)
-            fetchJukeboxQueue(); 
-            return;
-        }
-
         triggerNotification('🗑️ Lagu diselesaikan & dikeluarkan dari playlist!');
-        
-        // fetchJukeboxQueue(); // Kamu bisa nonaktifkan ini jika Optimistic Update sudah cukup, 
-                                // ini juga membantu mengurangi beban request/spam di console.
-
+        fetchJukeboxQueue();
       } catch (err: any) {
         alert(`Gagal hapus track jukebox: ${err.message}`);
-        // Jika gagal, ambil data ulang untuk mengembalikan UI ke kondisi semula
-        fetchJukeboxQueue(); 
       }
     } else {
       setJukeboxQueue(prev => prev.filter(t => t.id !== trackId));
@@ -1872,7 +1850,7 @@ const handleDeleteTable = async (tableNum: string) => {
       }
       triggerNotification('✓ Simulasi: Lagu dihapus dari antrean.');
     }
-};
+  };
 
   // Penanganan image upload drag and drop
   const handleDragOver = (e: React.DragEvent) => {
